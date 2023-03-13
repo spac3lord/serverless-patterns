@@ -33,7 +33,6 @@ function split (data: any, splitPath: string, propagatePaths: string[] = [], pro
 }
 
 // Get rid of source specifics
-// TODO: don't assume a single record is passed in (brittle)
 // TODO: detect the source and handle different cases like DDB Stream, SQS, etc
 function normalize (record: DynamoDBRecord) : Record<string, any> {
   // NewImage will use the aws-lambda AttributeValue and has to be cast to the client-dynamodb one
