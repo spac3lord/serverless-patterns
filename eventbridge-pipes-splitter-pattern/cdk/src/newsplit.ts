@@ -1,7 +1,11 @@
+// A splitter component for EventBridge Pipes that takes environment parameters 
+
 import { unmarshall } from '@aws-sdk/util-dynamodb';
 import { DynamoDBRecord } from 'aws-lambda';
 import { AttributeValue } from '@aws-sdk/client-dynamodb';
 import { JSONPath, JSONPathOptions } from 'jsonpath-plus';
+
+const PROPAGATE_SEPARATOR = ";"; // character that separates the paths of fields to be propagated
 
 // Split an object by the specified node and copy a list of specified nodes into each part,
 // prepended with an optional prefix to avoid field name collisions.
@@ -31,14 +35,27 @@ function split (data: any, splitPath: string, propagatePaths: string[] = [], pro
 // Get rid of source specifics
 // TODO: don't assume a single record is passed in (brittle)
 // TODO: detect the source and handle different cases like DDB Stream, SQS, etc
-function normalize (records: DynamoDBRecord[]) : Record<string, any> {
+function normalize (record: DynamoDBRecord) : Record<string, any> {
   // NewImage will use the aws-lambda AttributeValue and has to be cast to the client-dynamodb one
-  const newItem = (records[0]?.dynamodb?.NewImage as { [key: string]: AttributeValue }) || {};
+  const newItem = (record?.dynamodb?.NewImage as { [key: string]: AttributeValue }) || {};
   return unmarshall(newItem);
 }
 
 export async function handler(records: DynamoDBRecord[]) {
-  console.log(records[0])
-  const data = normalize(records)
-  return split(data, '$.tickets', ['$.id', '$.userId'], 'common_')
+  const splitPath = process.env.SPLIT_PATH ?? ''
+  const propagateParm = process.env.PROPAGATE // list of paths, separated by semicolon
+  const propagate =  propagateParm ? propagateParm.split(PROPAGATE_SEPARATOR) : []
+  const propagatePrefix = process.env.PREFIX 
+
+  console.log ("Split by: %s Propagate: %s Prefix: %s", splitPath, propagate, propagatePrefix)
+  // handler can be invoked with multiple events for batched sources
+  let result : Record<string, any> = [];
+  records.forEach( (record: DynamoDBRecord ) => {
+    const data = normalize(record);
+    const splitData = split(data, splitPath, propagate, propagatePrefix);
+    console.log(splitData);
+    result = result.concat(splitData);
+  })
+  console.log(result);
+  return result;
 }

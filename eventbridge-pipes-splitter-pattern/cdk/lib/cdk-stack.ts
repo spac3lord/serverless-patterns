@@ -57,12 +57,17 @@ export class EventBridgePipesUniversalSplitter extends cdk.Stack {
       stream: StreamViewType.NEW_IMAGE,
     });
 
-    // function used to split the order into seperate events.
+    // Lambda function that splits the order into seperate events.
     const splitterFunc: NodejsFunction = new NodejsFunction(this, 'lambda-newsplitter', {
-      memorySize: 1024,
+      memorySize: 256,
       runtime: Runtime.NODEJS_18_X,
       handler: 'handler',
       entry: path.join(__dirname, '../src', LAMBDA_SOURCE),
+      environment: {
+        SPLIT_PATH: '$.tickets', 
+        PROPAGATE: '$.id;$.userId',
+        PREFIX: 'common_'
+      }
     });
 
     const pipeRole = new Role(this, 'pipe-role', {
@@ -81,7 +86,7 @@ export class EventBridgePipesUniversalSplitter extends cdk.Stack {
       sourceParameters: {
         dynamoDbStreamParameters: {
           startingPosition: StartingPosition.LATEST,
-          batchSize: 1,
+          maximumBatchingWindowInSeconds: 10
         },
         filterCriteria: {
           filters: [
