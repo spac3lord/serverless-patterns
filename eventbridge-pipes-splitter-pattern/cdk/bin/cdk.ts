@@ -1,10 +1,10 @@
 #!/usr/bin/env node
 import 'source-map-support/register';
 import * as cdk from 'aws-cdk-lib';
-import { EventBridgePipesSplitterPattern } from '../lib/cdk-stack';
+import { EventBridgePipesUniversalSplitter } from '../lib/cdk-stack';
 
 const app = new cdk.App();
-new EventBridgePipesSplitterPattern(app, 'EventBridgePipesSplitterPattern', {
+new EventBridgePipesUniversalSplitter(app, 'EventBridgePipesUniversalSplitter', {
   /* If you don't specify 'env', this stack will be environment-agnostic.
    * Account/Region-dependent features and context lookups will not work,
    * but a single synthesized template can be deployed anywhere. */

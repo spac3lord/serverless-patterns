@@ -12,18 +12,24 @@ import { Runtime, StartingPosition } from 'aws-cdk-lib/aws-lambda';
 import * as path from 'path';
 import { CloudWatchLogGroup } from 'aws-cdk-lib/aws-events-targets';
 
-export class EventBridgePipesSplitterPattern extends cdk.Stack {
+const TABLE_NAME = 'Orders-Table';  // the DynamoDB table to be created
+const EVENTBUS_NAME = 'ticket-orders'; // the event bus to be created
+const LAMBDA_SOURCE = 'newsplit.ts';  // source for Lambda function
+const LOGGROUP_NAME = '/aws/events/tickets'; // the CLoudWatch log group to be created
+
+
+export class EventBridgePipesUniversalSplitter extends cdk.Stack {
   constructor(scope: Construct, id: string, props?: cdk.StackProps) {
     super(scope, id, props);
 
     // log group to see Splitter output
     const ticketLogGroup = new LogGroup(this, 'tickets-log', {
-      logGroupName: '/aws/events/tickets',
+      logGroupName: LOGGROUP_NAME,
       retention: RetentionDays.ONE_DAY
     });
 
-    const ticketOrdersBus = new EventBus(this, 'ticket-orders', {
-      eventBusName: 'ticket-orders',
+    const ticketOrdersBus = new EventBus(this, 'bus-' + EVENTBUS_NAME, {
+      eventBusName: EVENTBUS_NAME,
     });
 
     // Rule that matches any incoming event and sends it to a logGroup
@@ -43,20 +49,20 @@ export class EventBridgePipesSplitterPattern extends cdk.Stack {
     ticketLogGroup.grantWrite(eventBridgeRole);
 
     // table for the orders.
-    const ordersTable = new Table(this, 'Orders-Table', {
+    const ordersTable = new Table(this, 'table-' + TABLE_NAME, {
       partitionKey: { name: 'id', type: AttributeType.STRING },
       billingMode: BillingMode.PAY_PER_REQUEST,
       removalPolicy: RemovalPolicy.DESTROY,
-      tableName: 'Orders-Table',
+      tableName: TABLE_NAME,
       stream: StreamViewType.NEW_IMAGE,
     });
 
     // function used to split the order into seperate events.
-    const splitterFunc: NodejsFunction = new NodejsFunction(this, 'lambda-function-splitter', {
+    const splitterFunc: NodejsFunction = new NodejsFunction(this, 'lambda-newsplitter', {
       memorySize: 1024,
       runtime: Runtime.NODEJS_18_X,
       handler: 'handler',
-      entry: path.join(__dirname, '../src', 'splitter.ts'),
+      entry: path.join(__dirname, '../src', LAMBDA_SOURCE),
     });
 
     const pipeRole = new Role(this, 'pipe-role', {
